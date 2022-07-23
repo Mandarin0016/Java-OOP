@@ -1,16 +1,18 @@
 package barracksWars.core.commands;
 
 import barracksWars.interfaces.Repository;
-import barracksWars.interfaces.UnitFactory;
 
 public class Report extends Command{
 
-    private Report(String[] data, Repository repository, UnitFactory unitFactory) {
-        super(data, repository, unitFactory);
+    @Inject
+    private Repository repository;
+
+    private Report(String[] data) {
+        super(data);
     }
 
     @Override
     public String execute() {
-        return super.getRepository().getStatistics();
+        return this.repository.getStatistics();
     }
 }

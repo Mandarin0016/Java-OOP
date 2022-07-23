@@ -1,6 +1,7 @@
 package barracksWars.core;
 
 import barracksWars.core.commands.Command;
+import barracksWars.core.commands.Inject;
 import barracksWars.interfaces.Repository;
 import barracksWars.interfaces.Runnable;
 import barracksWars.interfaces.UnitFactory;
@@ -11,7 +12,11 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class Engine implements Runnable {
 
@@ -50,9 +55,23 @@ public class Engine implements Runnable {
 	private String interpretCommand(String[] data, String commandName) throws ExecutionControl.NotImplementedException, ClassNotFoundException, NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
 		String commandNameParsed = Character.toUpperCase(commandName.toCharArray()[0]) + commandName.substring(1);
 		Class<?> commandClass = Class.forName(COMMANDS_PACKAGE_NAME + commandNameParsed);
-		Constructor<?> commandConstructor = commandClass.getDeclaredConstructor(String[].class, Repository.class, UnitFactory.class);
+		Constructor<?> commandConstructor = commandClass.getDeclaredConstructor(String[].class);
 		commandConstructor.setAccessible(true);
-		Command command = (Command) commandConstructor.newInstance(data, this.repository, this.unitFactory);
+		Command command = (Command) commandConstructor.newInstance((Object) data);
+		declareCommandFields(commandClass, command);
 		return command.execute();
 	}
+
+	private void declareCommandFields(Class<?> commandClass, Command command) throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
+		List<Field> commandClassInjectFields = Arrays.stream(commandClass.getDeclaredFields()).filter(field -> field.getAnnotations()[0] instanceof Inject).collect(Collectors.toList());
+		for (Field commandClassInjectField : commandClassInjectFields) {
+			commandClassInjectField.setAccessible(true);
+			if (commandClassInjectField.getType().getSimpleName().equals("Repository")){
+				commandClassInjectField.set(command, this.repository);
+			} else if (commandClassInjectField.getType().getSimpleName().equals("UnitFactory")){
+				commandClassInjectField.set(command, this.unitFactory);
+			}
+		}
+	}
+
 }
